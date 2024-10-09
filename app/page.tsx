@@ -34,14 +34,14 @@ export default function Home() {
           />
         ) : (
           <div className="text-3xl font-bold mb-8 bg-blue-600 p-6 rounded-full shadow-lg">
-            FSW
+            FDC
           </div>
         )}
         <h1 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-          Form Submission Website
+          Free Digital Clicks
         </h1>
         <p className="text-xl text-gray-300 mb-8">
-          Streamline your form submissions with ease
+          Streamline your form free digital files with ease
         </p>
       </motion.div>
       <motion.div
