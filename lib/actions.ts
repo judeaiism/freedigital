@@ -1,42 +1,86 @@
 'use server'
 
 import { db } from '@/lib/firebase'
-import { addDoc, collection, getDocs, query, where, doc, updateDoc, getDoc, Timestamp, serverTimestamp } from 'firebase/firestore'
+import { addDoc, collection, updateDoc, serverTimestamp, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore'
+import { Form } from '@/lib/types';
 
-export async function createForm(userId: string, title: string, description: string) {
+export async function createForm(userId: string, title: string, description: string, displayName: string) {
   try {
-    const docRef = await addDoc(collection(db, 'forms'), {
+    console.log("Creating form for user:", userId);
+
+    // Create a unique ID using the display name and a timestamp
+    const uniqueId = `${displayName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
+    console.log("Generated unique ID:", uniqueId);
+
+    const formData = {
+      id: uniqueId,
       userId,
       title,
       description,
       status: 'active',
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
-    });
-    
-    return docRef.id;
-  } catch (error) {
-    console.error("Error creating form:", error);
-    throw new Error('Failed to create form');
-  }
-}
+    };
 
-// Add this function to fetch forms
-export async function getFormsForUser(userId: string) {
-  try {
-    const formsQuery = query(collection(db, 'forms'), where('userId', '==', userId))
-    const querySnapshot = await getDocs(formsQuery)
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+    console.log("Attempting to add document to Firestore:", formData);
+
+    // Use the uniqueId as the document ID when creating the document
+    const docRef = doc(db, 'forms', uniqueId);
+    await setDoc(docRef, formData);
+
+    console.log("Form created successfully with ID:", uniqueId);
+
+    // Verify that the document exists before returning
+    const docSnap = await getDoc(docRef);
+    if (!docSnap.exists()) {
+      throw new Error(`Form with ID ${uniqueId} not found after creation`);
+    }
+
+    return uniqueId;
   } catch (error) {
-    console.error("Error fetching forms:", error)
-    throw error
+    console.error("Detailed error in createForm:", error);
+    throw new Error(`Failed to create form: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
 export async function deleteForm(formData: FormData) {
-  const formId = formData.get('formId') as string
-  const formRef = doc(db, 'forms', formId)
-  await updateDoc(formRef, { status: 'deleted' })
+  const formId = formData.get('formId') as string;
+  if (!formId) {
+    throw new Error('Form ID is required');
+  }
+
+  try {
+    const formRef = doc(db, 'forms', formId);
+    const formSnap = await getDoc(formRef);
+
+    if (!formSnap.exists()) {
+      console.log(`Form with ID ${formId} not found. It may have been already deleted.`);
+      return null;
+    }
+
+    const formData = formSnap.data();
+    const updatedForm = {
+      id: formId,
+      userId: formData.userId,
+      title: formData.title,
+      description: formData.description,
+      status: 'deleted',
+      createdAt: formData.createdAt.toDate().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    await updateDoc(formRef, {
+      status: 'deleted',
+      updatedAt: serverTimestamp()
+    });
+
+    console.log(`Form ${formId} marked as deleted successfully`);
+
+    return updatedForm; // Return a plain object
+  } catch (error) {
+    console.error(`Error deleting form ${formId}:`, error);
+    throw new Error(`Failed to delete form: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 export async function toggleFormStatus(formData: FormData) {
@@ -58,31 +102,55 @@ export async function toggleFormStatus(formData: FormData) {
   await updateDoc(formRef, { status: newStatus });
 }
 
-export async function updateForm(formData: FormData) {
-  const formId = formData.get('formId') as string;
+export async function updateForm(formId: string, title: string, description: string) {
   if (!formId) {
     throw new Error('Form ID is required');
   }
-
-  const title = formData.get('title') as string;
-  const description = formData.get('description') as string;
 
   if (!title || !description) {
     throw new Error('Title and description are required');
   }
 
+  try {
+    console.log(`Attempting to update form with ID: ${formId}`);
+    const formRef = doc(db, 'forms', formId);
+    const formSnap = await getDoc(formRef);
+
+    if (!formSnap.exists()) {
+      console.error(`Form with ID ${formId} not found in Firestore`);
+      throw new Error(`Form with ID ${formId} not found`);
+    }
+
+    await updateDoc(formRef, { 
+      title, 
+      description,
+      updatedAt: serverTimestamp()
+    });
+
+    console.log(`Form ${formId} updated successfully`);
+    return formId;
+  } catch (error) {
+    console.error(`Error updating form ${formId}:`, error);
+    throw new Error(`Failed to update form: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+export async function getFormById(formId: string): Promise<Form> {
   const formRef = doc(db, 'forms', formId);
   const formSnap = await getDoc(formRef);
 
   if (!formSnap.exists()) {
-    throw new Error('Form not found');
+    throw new Error(`Form with ID ${formId} not found`);
   }
 
-  await updateDoc(formRef, { 
-    title, 
-    description,
-    updatedAt: new Date()
-  });
-
-  return formId;
+  const data = formSnap.data();
+  return {
+    id: formId,
+    userId: data.userId,
+    title: data.title,
+    description: data.description,
+    status: data.status,
+    createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+    updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt
+  };
 }

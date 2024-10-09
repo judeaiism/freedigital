@@ -11,77 +11,85 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
 export default function EditForm({ params }: { params: { formId: string } }) {
-  const { user } = useAuth();
-  const router = useRouter();
-  const [form, setForm] = useState({ title: '', description: '' });
-  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const { user } = useAuth();
 
   useEffect(() => {
-    async function fetchForm() {
-      if (!user) return;
+    async function fetchFormData() {
+      if (!user) {
+        setError("You must be logged in to edit a form.");
+        setLoading(false);
+        return;
+      }
+
       try {
         const formRef = doc(db, 'forms', params.formId);
         const formSnap = await getDoc(formRef);
+
         if (formSnap.exists()) {
-          setForm(formSnap.data() as { title: string; description: string });
+          const formData = formSnap.data();
+          setTitle(formData.title || '');
+          setDescription(formData.description || '');
         } else {
-          setError('Form not found');
+          setError(`Form with ID ${params.formId} not found.`);
         }
       } catch (err) {
-        setError('Failed to fetch form');
+        setError(`Error fetching form data: ${err instanceof Error ? err.message : String(err)}`);
       } finally {
         setLoading(false);
       }
     }
-    fetchForm();
-  }, [user, params.formId]);
 
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!user) return;
+    fetchFormData();
+  }, [params.formId, user]);
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError(null);
     try {
-      const formData = new FormData(event.currentTarget);
-      formData.append('formId', params.formId);
-      await updateForm(formData);
+      await updateForm(params.formId, title, description);
       router.push('/dashboard');
-    } catch (err) {
-      setError('Failed to update form');
+    } catch (error) {
+      setError(`Failed to update form: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 
   if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!user) return <div>Please sign in to edit this form.</div>;
+  if (error) return <div className="text-red-500">{error}</div>;
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className="text-4xl font-bold mb-8">Edit Form</h1>
-      <form onSubmit={handleSubmit}>
-        <div className="mb-4">
+      <h1 className="text-2xl font-bold mb-5">Edit Form</h1>
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
           <label htmlFor="title" className="block text-sm font-medium text-gray-700">Title</label>
-          <Input
+          <input
             type="text"
             id="title"
-            name="title"
-            value={form.title}
-            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
             required
           />
         </div>
-        <div className="mb-4">
+        <div>
           <label htmlFor="description" className="block text-sm font-medium text-gray-700">Description</label>
-          <Textarea
+          <textarea
             id="description"
-            name="description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+            rows={3}
             required
-          />
+          ></textarea>
         </div>
-        <Button type="submit">Update Form</Button>
+        <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">Update Form</button>
       </form>
+      {error && <p className="text-red-500 mt-4">{error}</p>}
     </div>
   );
 }

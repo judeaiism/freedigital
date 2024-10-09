@@ -9,23 +9,16 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Edit, Trash2, Eye, PauseCircle, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
-import { createForm, deleteForm, toggleFormStatus } from '@/lib/actions';
+import { createForm, deleteForm, toggleFormStatus, getFormById } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Timestamp } from 'firebase/firestore';
 import { updateProfile } from 'firebase/auth';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { auth } from '@/lib/firebase';
-
-interface Form {
-  id: string;
-  userId: string;
-  createdAt: Timestamp;
-  title: string;
-  description: string;
-  status: 'active' | 'suspended' | 'deleted';
-}
+import { Timestamp } from 'firebase/firestore';
+import { Form } from '@/lib/types';
+import { signOut } from 'firebase/auth';
 
 async function getFormsForUser(userId: string): Promise<Form[]> {
   try {
@@ -35,42 +28,37 @@ async function getFormsForUser(userId: string): Promise<Form[]> {
       orderBy('createdAt', 'desc')
     );
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Form));
+    return querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userId: data.userId,
+        title: data.title,
+        description: data.description,
+        status: data.status,
+        createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
+        updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt
+      } as Form;
+    });
   } catch (error) {
     console.error("Error fetching forms:", error);
     return [];
   }
 }
 
-function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: () => void }) {
-  const [isToggling, setIsToggling] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-  const router = useRouter();
-
-  const handleToggleStatus = async (formData: FormData) => {
-    setIsToggling(true);
-    try {
-      await toggleFormStatus(formData);
-      onStatusChange();
-    } catch (error) {
-      console.error("Error toggling form status:", error);
-    } finally {
-      setIsToggling(false);
-    }
-  };
-
-  const handleDeleteForm = async (formData: FormData) => {
-    setIsDeleting(true);
-    try {
-      await deleteForm(formData);
-      onStatusChange();
-    } catch (error) {
-      console.error("Error deleting form:", error);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
+function FormTable({ 
+  forms, 
+  onStatusChange, 
+  onDeleteForm, 
+  isDeleting, 
+  isToggling 
+}: { 
+  forms: Form[]; 
+  onStatusChange: (formData: FormData) => Promise<void>;
+  onDeleteForm: (formId: string) => Promise<void>;
+  isDeleting: boolean;
+  isToggling: boolean;
+}) {
   return (
     <Table>
       <TableHeader>
@@ -88,7 +76,9 @@ function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: (
             <TableCell>{form.title}</TableCell>
             <TableCell>{form.description}</TableCell>
             <TableCell>{form.status}</TableCell>
-            <TableCell>{form.createdAt.toDate().toLocaleDateString()}</TableCell>
+            <TableCell>
+              {new Date(form.createdAt).toLocaleDateString()}
+            </TableCell>
             <TableCell>
               <div className="flex space-x-2">
                 <Button variant="outline" asChild size="sm">
@@ -106,18 +96,23 @@ function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: (
                     <Eye className="h-4 w-4" />
                   </Link>
                 </Button>
-                <form action={handleToggleStatus}>
+                <form onSubmit={(e) => {
+                  e.preventDefault();
+                  onStatusChange(new FormData(e.currentTarget));
+                }}>
                   <input type="hidden" name="formId" value={form.id} />
                   <Button variant="outline" type="submit" disabled={isToggling} size="sm">
                     {form.status === 'active' ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                   </Button>
                 </form>
-                <form action={handleDeleteForm}>
-                  <input type="hidden" name="formId" value={form.id} />
-                  <Button variant="destructive" type="submit" disabled={isDeleting} size="sm">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </form>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => onDeleteForm(form.id)} 
+                  disabled={isDeleting} 
+                  size="sm"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             </TableCell>
           </TableRow>
@@ -138,15 +133,19 @@ export default function Dashboard() {
   const [displayName, setDisplayName] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
 
   const refreshForms = useCallback(async () => {
     if (user) {
       try {
         const fetchedForms = await getFormsForUser(user.uid);
-        setForms(fetchedForms);
-        setActiveForms(fetchedForms.filter(form => form.status === 'active'));
-        setSuspendedForms(fetchedForms.filter(form => form.status === 'suspended'));
-        setDeletedForms(fetchedForms.filter(form => form.status === 'deleted'));
+        // Only include non-deleted forms
+        const nonDeletedForms = fetchedForms.filter(form => form.status !== 'deleted');
+        setForms(nonDeletedForms);
+        setActiveForms(nonDeletedForms.filter(form => form.status === 'active'));
+        setSuspendedForms(nonDeletedForms.filter(form => form.status === 'suspended'));
+        // Don't update deletedForms here
       } catch (err) {
         setError("Failed to fetch forms. Please try again later.");
       }
@@ -158,16 +157,12 @@ export default function Dashboard() {
       if (user) {
         try {
           const fetchedForms = await getFormsForUser(user.uid);
-          setForms(fetchedForms);
-          setActiveForms(
-            fetchedForms.filter(form => form.status === 'active')
-          );
-          setSuspendedForms(
-            fetchedForms.filter(form => form.status === 'suspended')
-          );
-          setDeletedForms(
-            fetchedForms.filter(form => form.status === 'deleted')
-          );
+          // Filter out deleted forms for the 'All Forms' tab
+          const nonDeletedForms = fetchedForms.filter(form => form.status !== 'deleted');
+          setForms(nonDeletedForms);
+          setActiveForms(fetchedForms.filter(form => form.status === 'active'));
+          setSuspendedForms(fetchedForms.filter(form => form.status === 'suspended'));
+          setDeletedForms(fetchedForms.filter(form => form.status === 'deleted'));
         } catch (err) {
           setError("Failed to fetch forms. Please try again later.");
         }
@@ -199,12 +194,26 @@ export default function Dashboard() {
   const handleCreateForm = async () => {
     if (user) {
       try {
-        const newFormId = await createForm(user.uid, 'New Form', 'Form Description');
+        console.log("Attempting to create form for user:", user.uid);
+        const displayName = user.displayName || 'user';
+        const newFormId = await createForm(user.uid, 'New Form', 'Form Description', displayName);
+        console.log("Form created successfully, redirecting to:", `/forms/${newFormId}/edit`);
+        
+        // Fetch the newly created form
+        const newForm = await getFormById(newFormId);
+        
+        // Update the state, excluding deleted forms
+        setForms(prevForms => [...prevForms.filter(form => form.status !== 'deleted'), newForm]);
+        setActiveForms(prevForms => [...prevForms, newForm]);
+        
         router.push(`/forms/${newFormId}/edit`);
       } catch (error) {
-        console.error("Error creating form:", error);
-        setError("Failed to create a new form. Please try again.");
+        console.error("Detailed error in handleCreateForm:", error);
+        setError(`Failed to create a new form: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
+    } else {
+      console.error("User not authenticated in handleCreateForm");
+      setError("User not authenticated. Please sign in to create a form.");
     }
   };
 
@@ -220,6 +229,51 @@ export default function Dashboard() {
         console.error("Error updating display name:", error);
         setError("Failed to update display name. Please try again.");
       }
+    }
+  };
+
+  const handleDeleteForm = async (formId: string) => {
+    setIsDeleting(true);
+    try {
+      const formData = new FormData();
+      formData.append('formId', formId);
+      await deleteForm(formData);
+      
+      // Update the local state to remove the deleted form
+      setForms(prevForms => prevForms.filter(form => form.id !== formId));
+      setActiveForms(prevForms => prevForms.filter(form => form.id !== formId));
+      setSuspendedForms(prevForms => prevForms.filter(form => form.id !== formId));
+      setDeletedForms(prevForms => prevForms.filter(form => form.id !== formId));
+
+      setError(null); // Clear any previous errors
+    } catch (error) {
+      console.error("Error deleting form:", error);
+      setError("Failed to delete form. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggleStatus = async (formData: FormData) => {
+    setIsToggling(true);
+    try {
+      await toggleFormStatus(formData);
+      await refreshForms();
+    } catch (error) {
+      console.error("Error toggling form status:", error);
+      setError("Failed to toggle form status. Please try again.");
+    } finally {
+      setIsToggling(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut(auth);
+      router.push('/'); // Redirect to home page after sign out
+    } catch (error) {
+      console.error("Error signing out:", error);
+      setError("Failed to sign out. Please try again.");
     }
   };
 
@@ -261,6 +315,9 @@ export default function Dashboard() {
           <Button onClick={handleCreateForm}>
             <PlusCircle className="mr-2 h-4 w-4" /> Create New Form
           </Button>
+          <Button variant="outline" onClick={handleSignOut}>
+            Sign Out
+          </Button>
         </div>
       </div>
       <Tabs defaultValue="all" className="mb-8">
@@ -272,22 +329,46 @@ export default function Dashboard() {
         </TabsList>
         <TabsContent value="all">
           <Suspense fallback={<div>Loading forms...</div>}>
-            <FormTable forms={forms} onStatusChange={refreshForms} />
+            <FormTable 
+              forms={forms} // This now contains only non-deleted forms
+              onStatusChange={handleToggleStatus} 
+              onDeleteForm={handleDeleteForm}
+              isDeleting={isDeleting}
+              isToggling={isToggling}
+            />
           </Suspense>
         </TabsContent>
         <TabsContent value="active">
           <Suspense fallback={<div>Loading active forms...</div>}>
-            <FormTable forms={activeForms} onStatusChange={refreshForms} />
+            <FormTable 
+              forms={activeForms} 
+              onStatusChange={handleToggleStatus} 
+              onDeleteForm={handleDeleteForm}
+              isDeleting={isDeleting}
+              isToggling={isToggling}
+            />
           </Suspense>
         </TabsContent>
         <TabsContent value="suspended">
           <Suspense fallback={<div>Loading suspended forms...</div>}>
-            <FormTable forms={suspendedForms} onStatusChange={refreshForms} />
+            <FormTable 
+              forms={suspendedForms} 
+              onStatusChange={handleToggleStatus} 
+              onDeleteForm={handleDeleteForm}
+              isDeleting={isDeleting}
+              isToggling={isToggling}
+            />
           </Suspense>
         </TabsContent>
         <TabsContent value="deleted">
           <Suspense fallback={<div>Loading deleted forms...</div>}>
-            <FormTable forms={deletedForms} onStatusChange={refreshForms} />
+            <FormTable 
+              forms={deletedForms} 
+              onStatusChange={handleToggleStatus} 
+              onDeleteForm={handleDeleteForm}
+              isDeleting={isDeleting}
+              isToggling={isToggling}
+            />
           </Suspense>
         </TabsContent>
       </Tabs>

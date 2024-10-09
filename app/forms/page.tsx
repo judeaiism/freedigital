@@ -1,15 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { getFormsForUser } from '@/lib/actions';
-// Remove or comment out the line below if you don't have an auth context
-// import { useAuth } from '@/lib/auth';
+// Comment out the import for now
+// import { getForms } from '@/lib/actions';
 
 // Define an interface for the form structure
 interface Form {
   id: string;
   title: string;
   description: string;
+}
+
+// Placeholder function for fetching forms
+async function placeholderGetForms(userId: string): Promise<Form[]> {
+  // TODO: Replace this with the actual function from @/lib/actions
+  console.warn('Using placeholder function for getForms. Update with actual implementation.');
+  return [];
 }
 
 export default function FormsPage() {
@@ -19,7 +25,7 @@ export default function FormsPage() {
     async function fetchForms() {
       // Replace 'user.uid' with the actual user ID if you're not using an auth context
       try {
-        const userForms = await getFormsForUser('your-user-id-here');
+        const userForms = await placeholderGetForms('your-user-id-here'); // Updated function call
         // Cast the returned forms to the Form interface
         setForms(userForms as Form[]);
       } catch (error) {
