@@ -41,6 +41,8 @@ async function getFormsForUser(userId: string): Promise<Form[]> {
 
 function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: () => void }) {
   const [isToggling, setIsToggling] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   const handleToggleStatus = async (formData: FormData) => {
     setIsToggling(true);
@@ -51,6 +53,18 @@ function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: (
       console.error("Error toggling form status:", error);
     } finally {
       setIsToggling(false);
+    }
+  };
+
+  const handleDeleteForm = async (formData: FormData) => {
+    setIsDeleting(true);
+    try {
+      await deleteForm(formData);
+      onStatusChange();
+    } catch (error) {
+      console.error("Error deleting form:", error);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -95,9 +109,9 @@ function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: (
                     {form.status === 'active' ? <PauseCircle className="h-4 w-4" /> : <PlayCircle className="h-4 w-4" />}
                   </Button>
                 </form>
-                <form action={deleteForm}>
+                <form action={handleDeleteForm}>
                   <input type="hidden" name="formId" value={form.id} />
-                  <Button variant="destructive" type="submit" size="sm">
+                  <Button variant="destructive" type="submit" disabled={isDeleting} size="sm">
                     <Trash2 className="h-4 w-4" />
                   </Button>
                 </form>
