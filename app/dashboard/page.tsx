@@ -12,8 +12,11 @@ import Link from 'next/link';
 import { createForm, deleteForm, toggleFormStatus } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
 import { Timestamp } from 'firebase/firestore';
+import { updateProfile } from 'firebase/auth';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { auth } from '@/lib/firebase';
 
 interface Form {
   id: string;
@@ -125,13 +128,15 @@ function FormTable({ forms, onStatusChange }: { forms: Form[]; onStatusChange: (
 }
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const [forms, setForms] = useState<Form[]>([]);
   const [activeForms, setActiveForms] = useState<Form[]>([]);
   const [suspendedForms, setSuspendedForms] = useState<Form[]>([]);
   const [deletedForms, setDeletedForms] = useState<Form[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState('');
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
 
   const refreshForms = useCallback(async () => {
@@ -173,6 +178,12 @@ export default function Dashboard() {
     fetchForms();
   }, [user]);
 
+  useEffect(() => {
+    if (user) {
+      setDisplayName(user.displayName || '');
+    }
+  }, [user]);
+
   if (loading) {
     return <div>Loading...</div>;
   }
@@ -197,13 +208,60 @@ export default function Dashboard() {
     }
   };
 
+  const handleUpdateDisplayName = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (auth.currentUser) {
+      try {
+        await updateProfile(auth.currentUser, { displayName });
+        setUser({ ...auth.currentUser, displayName });
+        setIsDialogOpen(false);
+        setError(null);
+      } catch (error) {
+        console.error("Error updating display name:", error);
+        setError("Failed to update display name. Please try again.");
+      }
+    }
+  };
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-8">
-        <h1 className="text-4xl font-bold">Dashboard</h1>
-        <Button onClick={handleCreateForm}>
-          <PlusCircle className="mr-2 h-4 w-4" /> Create New Form
-        </Button>
+        <div>
+          <h1 className="text-4xl font-bold">Dashboard</h1>
+          {user?.displayName && (
+            <p className="text-lg mt-2">Welcome, {user.displayName}!</p>
+          )}
+        </div>
+        <div className="flex space-x-4">
+          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" onClick={() => setIsDialogOpen(true)}>
+                {user?.displayName ? 'Change Display Name' : 'Add Display Name'}
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{user?.displayName ? 'Change Display Name' : 'Add Display Name'}</DialogTitle>
+                <DialogDescription>
+                  Enter your new display name below. This name will be visible to others.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleUpdateDisplayName} className="space-y-4">
+                <Input
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="Enter display name"
+                />
+                <Button type="submit">Save</Button>
+              </form>
+              {error && <p className="text-red-500 mt-2">{error}</p>}
+            </DialogContent>
+          </Dialog>
+          <Button onClick={handleCreateForm}>
+            <PlusCircle className="mr-2 h-4 w-4" /> Create New Form
+          </Button>
+        </div>
       </div>
       <Tabs defaultValue="all" className="mb-8">
         <TabsList>

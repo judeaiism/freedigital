@@ -6,9 +6,10 @@ import { auth } from '../lib/firebase';
 
 interface AuthContextType {
   user: User | null;
+  setUser: React.Dispatch<React.SetStateAction<User | null>>;
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null });
+const AuthContext = createContext<AuthContextType>({ user: null, setUser: () => {} });
 
 export const useAuth = () => useContext(AuthContext);
 
@@ -24,7 +25,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user }}>
+    <AuthContext.Provider value={{ user, setUser }}>
       {children}
     </AuthContext.Provider>
   );
