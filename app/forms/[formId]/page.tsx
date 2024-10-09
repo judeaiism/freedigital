@@ -47,7 +47,7 @@ export default function FormPage() {
     return (
       <Card className="w-[350px] mx-auto mt-10">
         <CardHeader>
-          <CardTitle>Thank you for your submission!</CardTitle>
+          <CardTitle>Thank you for your submission! File will be sent to your email shortly.</CardTitle>
         </CardHeader>
         <CardContent>
           {downloadUrl && (
