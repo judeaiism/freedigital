@@ -5,7 +5,6 @@ import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlusCircle, Edit, Trash2, Eye, PauseCircle, PlayCircle } from 'lucide-react';
 import Link from 'next/link';
@@ -146,7 +145,8 @@ export default function Dashboard() {
         setActiveForms(nonDeletedForms.filter(form => form.status === 'active'));
         setSuspendedForms(nonDeletedForms.filter(form => form.status === 'suspended'));
         // Don't update deletedForms here
-      } catch (err) {
+      } catch (error) {
+        console.error("Error refreshing forms:", error);
         setError("Failed to fetch forms. Please try again later.");
       }
     }
@@ -163,7 +163,8 @@ export default function Dashboard() {
           setActiveForms(fetchedForms.filter(form => form.status === 'active'));
           setSuspendedForms(fetchedForms.filter(form => form.status === 'suspended'));
           setDeletedForms(fetchedForms.filter(form => form.status === 'deleted'));
-        } catch (err) {
+        } catch (error) {
+          console.error("Error fetching forms:", error);
           setError("Failed to fetch forms. Please try again later.");
         }
       }

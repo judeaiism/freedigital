@@ -12,7 +12,7 @@ interface Form {
 }
 
 // Placeholder function for fetching forms
-async function placeholderGetForms(userId: string): Promise<Form[]> {
+async function placeholderGetForms(): Promise<Form[]> {
   // TODO: Replace this with the actual function from @/lib/actions
   console.warn('Using placeholder function for getForms. Update with actual implementation.');
   return [];
@@ -23,18 +23,16 @@ export default function FormsPage() {
 
   useEffect(() => {
     async function fetchForms() {
-      // Replace 'user.uid' with the actual user ID if you're not using an auth context
       try {
-        const userForms = await placeholderGetForms('your-user-id-here'); // Updated function call
-        // Cast the returned forms to the Form interface
-        setForms(userForms as Form[]);
+        const userForms = await placeholderGetForms();
+        setForms(userForms);
       } catch (error) {
         console.error("Error fetching forms:", error);
       }
     }
 
     fetchForms();
-  }, []); // Remove 'user' from the dependency array if not using auth context
+  }, []);
 
   return (
     <div>
