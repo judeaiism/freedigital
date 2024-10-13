@@ -4,11 +4,10 @@ import { db } from '@/lib/firebase'
 import { updateDoc, serverTimestamp, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore'
 import { Form } from '@/lib/types';
 
-export async function createForm(userId: string, title: string, description: string, displayName: string) {
+export async function createForm(userId: string, title: string, description: string, displayName: string, fileUrl?: string) {
   try {
     console.log("Creating form for user:", userId);
 
-    // Create a unique ID using the display name and a timestamp
     const uniqueId = `${displayName.toLowerCase().replace(/\s+/g, '-')}-${Date.now()}`;
     console.log("Generated unique ID:", uniqueId);
 
@@ -19,18 +18,17 @@ export async function createForm(userId: string, title: string, description: str
       description,
       status: 'active',
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp()
+      updatedAt: serverTimestamp(),
+      fileUrl: fileUrl || null, // Add the fileUrl field
     };
 
     console.log("Attempting to add document to Firestore:", formData);
 
-    // Use the uniqueId as the document ID when creating the document
     const docRef = doc(db, 'forms', uniqueId);
     await setDoc(docRef, formData);
 
     console.log("Form created successfully with ID:", uniqueId);
 
-    // Verify that the document exists before returning
     const docSnap = await getDoc(docRef);
     if (!docSnap.exists()) {
       throw new Error(`Form with ID ${uniqueId} not found after creation`);

@@ -6,4 +6,5 @@ export interface Form {
   status: 'active' | 'suspended' | 'deleted';
   createdAt: string;
   updatedAt: string;
+  fileUrl?: string; // New field for the uploaded file URL
 }

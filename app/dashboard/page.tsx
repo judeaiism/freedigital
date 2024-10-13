@@ -18,6 +18,10 @@ import { auth } from '@/lib/firebase';
 import { Timestamp } from 'firebase/firestore';
 import { Form } from '@/lib/types';
 import { signOut } from 'firebase/auth';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+
+const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'application/epub+zip'];
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
 async function getFormsForUser(userId: string): Promise<Form[]> {
   try {
@@ -134,6 +138,7 @@ export default function Dashboard() {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
   const [isToggling, setIsToggling] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
 
   const refreshForms = useCallback(async () => {
     if (user) {
@@ -151,7 +156,6 @@ export default function Dashboard() {
       }
     }
   }, [user]);
-
   useEffect(() => {
     async function fetchForms() {
       if (user) {
@@ -192,18 +196,43 @@ export default function Dashboard() {
     return <div>Please sign in to access the dashboard.</div>;
   }
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const selectedFile = e.target.files[0];
+      if (ALLOWED_FILE_TYPES.includes(selectedFile.type) && selectedFile.size <= MAX_FILE_SIZE) {
+        setFile(selectedFile);
+        setError(null);
+      } else {
+        setFile(null);
+        setError("Invalid file type or size. Please select an image, PDF, or eBook under 10MB.");
+      }
+    }
+  };
+
+  const uploadFile = async () => {
+    if (!file) return undefined;
+    const storage = getStorage();
+    const fileExtension = file.name.split('.').pop();
+    const fileName = `${Date.now()}.${fileExtension}`;
+    const storageRef = ref(storage, `files/${fileName}`);
+    await uploadBytes(storageRef, file);
+    return getDownloadURL(storageRef);
+  };
+
   const handleCreateForm = async () => {
     if (user) {
       try {
         console.log("Attempting to create form for user:", user.uid);
         const displayName = user.displayName || 'user';
-        const newFormId = await createForm(user.uid, 'New Form', 'Form Description', displayName);
+        let fileUrl: string | undefined = undefined;
+        if (file) {
+          fileUrl = await uploadFile();
+        }
+        const newFormId = await createForm(user.uid, 'New Form', 'Form Description', displayName, fileUrl);
         console.log("Form created successfully, redirecting to:", `/forms/${newFormId}/edit`);
         
-        // Fetch the newly created form
         const newForm = await getFormById(newFormId);
         
-        // Update the state, excluding deleted forms
         setForms(prevForms => [...prevForms.filter(form => form.status !== 'deleted'), newForm]);
         setActiveForms(prevForms => [...prevForms, newForm]);
         
@@ -217,7 +246,6 @@ export default function Dashboard() {
       setError("User not authenticated. Please sign in to create a form.");
     }
   };
-
   const handleUpdateDisplayName = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (auth.currentUser) {
@@ -254,7 +282,6 @@ export default function Dashboard() {
       setIsDeleting(false);
     }
   };
-
   const handleToggleStatus = async (formData: FormData) => {
     setIsToggling(true);
     try {
@@ -313,6 +340,11 @@ export default function Dashboard() {
               {error && <p className="text-red-500 mt-2">{error}</p>}
             </DialogContent>
           </Dialog>
+          <input 
+            type="file" 
+            onChange={handleFileChange} 
+            accept=".pdf,.epub,image/*"
+          />
           <Button onClick={handleCreateForm}>
             <PlusCircle className="mr-2 h-4 w-4" /> Create New Form
           </Button>
@@ -373,6 +405,7 @@ export default function Dashboard() {
           </Suspense>
         </TabsContent>
       </Tabs>
+      {error && <p className="text-red-500 mt-2">{error}</p>}
     </div>
   );
 }

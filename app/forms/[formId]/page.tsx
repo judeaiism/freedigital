@@ -31,20 +31,17 @@ export default function FormPage() {
         if (docSnap.exists()) {
           const formDetails = docSnap.data();
           if (formDetails.status === 'suspended' || formDetails.status === 'deleted') {
-            // Redirect to homepage if the form is suspended or deleted
             router.push('/');
             return;
           }
           setFormTitle(formDetails.title || 'Untitled Form');
           setDownloadUrl(formDetails.fileUrl || '');
         } else {
-          // Form not found, redirect to homepage
           router.push('/');
           return;
         }
       } catch (error) {
         console.error("Error fetching form details:", error);
-        // In case of error, redirect to homepage
         router.push('/');
         return;
       } finally {
@@ -72,7 +69,7 @@ export default function FormPage() {
     return (
       <Card className="w-[350px] mx-auto mt-10">
         <CardHeader>
-          <CardTitle>Thank you for your submission! File will be sent to your email shortly.</CardTitle>
+          <CardTitle>Thank you for your submission!</CardTitle>
         </CardHeader>
         <CardContent>
           {downloadUrl && (
