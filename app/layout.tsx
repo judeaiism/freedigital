@@ -15,17 +15,17 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://freedigital.click'),
+  metadataBase: new URL('https://www.freedigital.click'),
   title: "Free Digital Clicks",
   description: "Grow Your Audience with Simple Forms",
   openGraph: {
     title: "Free Digital Clicks",
     description: "Grow Your Audience with Simple Forms",
-    url: "https://freedigital.click",
+    url: "https://www.freedigital.click",
     siteName: "Free Digital Clicks",
     images: [
       {
-        url: "/og-image.png",  // Assuming you've added this image to your public folder
+        url: "https://www.freedigital.click/og-image.png",
         width: 1200,
         height: 630,
         alt: "Free Digital Clicks - Grow Your Audience with Simple Forms",
@@ -38,11 +38,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Free Digital Clicks",
     description: "Grow Your Audience with Simple Forms",
-    site: "@eneffti",  // Replace with your Twitter handle
-    images: ["/og-image.png"],  // Same image as OpenGraph
+    site: "@eneffti",
+    images: ["https://www.freedigital.click/og-image.png"],
   },
   alternates: {
-    canonical: "https://freedigital.click",
+    canonical: "https://www.freedigital.click",
   },
 };
 
@@ -54,7 +54,11 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <head>
-        {/* You can add additional meta tags here if needed */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@eneffti" />
+        <meta name="twitter:title" content="Free Digital Clicks" />
+        <meta name="twitter:description" content="Grow Your Audience with Simple Forms" />
+        <meta name="twitter:image" content="https://www.freedigital.click/og-image.png" />
       </head>
       <body>
         <AuthProvider>
