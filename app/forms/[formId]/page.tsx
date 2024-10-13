@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { Button } from "@/components/ui/button"
@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function FormPage() {
   const params = useParams();
+  const router = useRouter();
   const formId = params.formId as string;
   const [formData, setFormData] = useState({
     email: '',
@@ -20,18 +21,38 @@ export default function FormPage() {
   const [submitted, setSubmitted] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState('');
   const [formTitle, setFormTitle] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchFormDetails = async () => {
-      const docRef = doc(db, 'forms', formId);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setFormTitle(docSnap.data().title || 'Untitled Form');
-        setDownloadUrl(docSnap.data().fileUrl || '');
+      try {
+        const docRef = doc(db, 'forms', formId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          const formDetails = docSnap.data();
+          if (formDetails.status === 'suspended' || formDetails.status === 'deleted') {
+            // Redirect to homepage if the form is suspended or deleted
+            router.push('/');
+            return;
+          }
+          setFormTitle(formDetails.title || 'Untitled Form');
+          setDownloadUrl(formDetails.fileUrl || '');
+        } else {
+          // Form not found, redirect to homepage
+          router.push('/');
+          return;
+        }
+      } catch (error) {
+        console.error("Error fetching form details:", error);
+        // In case of error, redirect to homepage
+        router.push('/');
+        return;
+      } finally {
+        setLoading(false);
       }
     };
     fetchFormDetails();
-  }, [formId]);
+  }, [formId, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,6 +63,10 @@ export default function FormPage() {
     });
     setSubmitted(true);
   };
+
+  if (loading) {
+    return <div>Loading...</div>;
+  }
 
   if (submitted) {
     return (
