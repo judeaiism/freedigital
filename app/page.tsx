@@ -38,10 +38,10 @@ export default function Home() {
           </div>
         )}
         <h1 className="text-5xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-purple-600">
-          Free Digital Clicks
+        Grow Your Audience with Simple Forms
         </h1>
         <p className="text-xl text-gray-300 mb-8">
-          Streamline your form free digital files with ease
+        EASY EMAIL LIST BUILDING
         </p>
       </motion.div>
       <motion.div
