@@ -1,8 +1,19 @@
 'use server'
 
 import { db } from '@/lib/firebase'
-import { updateDoc, serverTimestamp, doc, getDoc, setDoc, Timestamp } from 'firebase/firestore'
+import { updateDoc, serverTimestamp, doc, getDoc, setDoc, Timestamp, increment, arrayUnion } from 'firebase/firestore'
 import { Form } from '@/lib/types';
+
+// Add this interface definition at the top of the file
+interface AnalyticsData {
+  views: number;
+  submissions: number;
+  downloads: number;
+  locations: string[];
+  submissionDates: string[];
+  bounceRate: string;
+  trafficSources: Record<string, number>;
+}
 
 export async function createForm(userId: string, title: string, description: string, displayName: string, fileUrl?: string) {
   try {
@@ -151,4 +162,64 @@ export async function getFormById(formId: string): Promise<Form> {
     createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
     updatedAt: data.updatedAt instanceof Timestamp ? data.updatedAt.toDate().toISOString() : data.updatedAt
   };
+}
+
+// Function to record a form view
+export async function recordFormView(formId: string, location: string, source: string) {
+  const analyticsRef = doc(db, 'formAnalytics', formId);
+  await setDoc(analyticsRef, {
+    views: increment(1),
+    locations: arrayUnion(location),
+    [`trafficSources.${source}`]: increment(1)
+  }, { merge: true });
+}
+
+// Function to record a form submission
+export async function recordFormSubmission(formId: string) {
+  const analyticsRef = doc(db, 'formAnalytics', formId);
+  await updateDoc(analyticsRef, {
+    submissions: increment(1)
+  });
+}
+
+// Function to record a file download
+export async function recordFileDownload(formId: string) {
+  const analyticsRef = doc(db, 'formAnalytics', formId);
+  await updateDoc(analyticsRef, {
+    downloads: increment(1)
+  });
+}
+
+// Function to get analytics for a form
+export async function getFormAnalytics(formId: string): Promise<AnalyticsData | null> {
+  const analyticsRef = doc(db, 'formAnalytics', formId);
+  const analyticsSnap = await getDoc(analyticsRef);
+  if (analyticsSnap.exists()) {
+    const data = analyticsSnap.data();
+    const views = data.views || 0;
+    const submissions = data.submissions || 0;
+    const downloads = data.downloads || 0;
+    const bounceRate = views > 0 ? ((views - submissions) / views * 100).toFixed(2) : '0';
+    return {
+      views,
+      submissions,
+      downloads,
+      locations: data.locations || [],
+      submissionDates: data.submissionDates || [],
+      bounceRate,
+      trafficSources: data.trafficSources || {
+        direct: 0,
+        'social-facebook': 0,
+        'social-twitter': 0,
+        'social-linkedin': 0,
+        'social-instagram': 0,
+        email: 0,
+        'search-google': 0,
+        'search-bing': 0,
+        'search-other': 0,
+        referral: 0,
+      }
+    };
+  }
+  return null;
 }

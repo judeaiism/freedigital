@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PlusCircle, Edit, Trash2, Eye, PauseCircle, PlayCircle, Share } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, Eye, PauseCircle, PlayCircle, Share, BarChart } from 'lucide-react';
 import Link from 'next/link';
 import { createForm, deleteForm, toggleFormStatus, getFormById } from '@/lib/actions';
 import { useRouter } from 'next/navigation';
@@ -97,6 +97,11 @@ function FormTable({
                 <Button variant="outline" asChild size="sm" title="View Submissions">
                   <Link href={`/forms/${form.id}/submissions`}>
                     <Eye className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="outline" asChild size="sm" title="View Analytics">
+                  <Link href={`/forms/${form.id}/analytics`}>
+                    <BarChart className="h-4 w-4" />
                   </Link>
                 </Button>
                 <form onSubmit={(e) => {

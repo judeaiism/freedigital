@@ -7,6 +7,7 @@ import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { recordFormView, recordFormSubmission, recordFileDownload } from '@/lib/actions';
 
 export default function FormPage() {
   const params = useParams();
@@ -51,6 +52,26 @@ export default function FormPage() {
     fetchFormDetails();
   }, [formId, router]);
 
+  useEffect(() => {
+    const recordView = async () => {
+      if (formId) {
+        // You might want to use a geolocation API to get the actual location
+        // Determine the traffic source here
+        const trafficSource = determineTrafficSource();
+        await recordFormView(formId, 'Unknown Location', trafficSource);
+      }
+    };
+    recordView();
+  }, [formId]);
+
+  // Function to determine traffic source
+  const determineTrafficSource = () => {
+    // Implement your logic here to determine the traffic source
+    // This could involve checking referrer headers, URL parameters, etc.
+    // Return one of: 'direct', 'social-facebook', 'social-twitter', 'social-linkedin', 'social-instagram', 'email', 'search-google', 'search-bing', 'search-other', 'referral'
+    return 'direct'; // placeholder
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     await addDoc(collection(db, 'formResponses'), {
@@ -58,7 +79,13 @@ export default function FormPage() {
       ...formData,
       submittedAt: new Date(),
     });
+    await recordFormSubmission(formId);
     setSubmitted(true);
+  };
+
+  const handleDownload = async () => {
+    await recordFileDownload(formId);
+    // Proceed with the download
   };
 
   if (loading) {
@@ -73,7 +100,7 @@ export default function FormPage() {
         </CardHeader>
         <CardContent>
           {downloadUrl && (
-            <Button asChild>
+            <Button asChild onClick={handleDownload}>
               <a href={downloadUrl} download>Download File</a>
             </Button>
           )}
