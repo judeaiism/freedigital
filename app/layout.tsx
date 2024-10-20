@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Free Digital Clicks",
   description: "Grow Your Audience with Simple Forms",
   openGraph: {
-    title: "Free Digital Clicks",
+    title: "Send Forms > Get Leads",
     description: "Grow Your Audience with Simple Forms",
     url: "https://www.freedigital.click",
     siteName: "Free Digital Clicks",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
         url: "https://www.freedigital.click/og-image.png",
         width: 1200,
         height: 630,
-        alt: "Free Digital Clicks - Grow Your Audience with Simple Forms",
+        alt: "Send Forms > Get Leads - Grow Your Audience with Simple Forms",
       },
     ],
     locale: "en_US",
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Free Digital Clicks",
+    title: "Send Forms > Get Leads",
     description: "Grow Your Audience with Simple Forms",
     site: "@eneffti",
     images: ["https://www.freedigital.click/og-image.png"],
