@@ -16,13 +16,13 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://www.freedigital.click'),
-  title: "Free Digital Clicks",
+  title: "Send Forms > Get Leads",
   description: "Grow Your Audience with Simple Forms",
   openGraph: {
     title: "Send Forms > Get Leads",
     description: "Grow Your Audience with Simple Forms",
     url: "https://www.freedigital.click",
-    siteName: "Free Digital Clicks",
+    siteName: "Send Forms > Get Leads",
     images: [
       {
         url: "https://www.freedigital.click/og-image.png",
@@ -56,7 +56,7 @@ export default function RootLayout({
       <head>
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@eneffti" />
-        <meta name="twitter:title" content="Free Digital Clicks" />
+        <meta name="twitter:title" content="Send Forms > Get Leads" />
         <meta name="twitter:description" content="Grow Your Audience with Simple Forms" />
         <meta name="twitter:image" content="https://www.freedigital.click/og-image.png" />
       </head>
